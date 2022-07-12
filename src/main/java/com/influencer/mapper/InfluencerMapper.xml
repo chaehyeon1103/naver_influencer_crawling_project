@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org/DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.influencer.mapper.InfluencerMapper">
+    <select id="getKeyword" resultType="com.influencer.vo.KeywordVO">
+        select * from keyword_info
+    </select>
+
+    <insert id="insertKeywordInfo">
+        load data infile #{filePath}
+            into table keyword_influencer_info
+            character set utf8mb4
+            fields
+                terminated by ','
+                OPTIONALLY ENCLOSED BY '"' ESCAPED BY '"'
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, type, total_count)
+    </insert>
+
+    <insert id="insertKeywordInfoDetail">
+        load data infile #{filePath}
+            into table keyword_influencer_detail
+            character set utf8mb4
+            fields
+                terminated by ','
+                OPTIONALLY ENCLOSED BY '"' ESCAPED BY '"'
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, type, count)
+    </insert>
+
+    <insert id="insertKeywordFashionStyle">
+        load data infile #{filePath}
+            into table keyword_info_style
+            character set utf8mb4
+            fields
+                terminated by ','
+                OPTIONALLY ENCLOSED BY '"' ESCAPED BY '"'
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, keyword_info_title, keyword_info_type)
+    </insert>
+
+    <insert id="insertRecommendedInfluencer">
+        load data infile #{filePath}
+            into table recommanded_influencer
+            character set utf8mb4
+            fields
+                terminated by ','
+                OPTIONALLY ENCLOSED BY '"' ESCAPED BY '"'
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, content_num, influencer_img, influencer_name, influencer_type, influencer_type_detail,
+                fan_count, content_title, content_desc, content_img, content_link, content_post_date)
+    </insert>
+
+    <insert id="insertInfluencerContent">
+        load data infile #{filePath}
+            into table influencer_content
+            character set utf8mb4
+            fields
+                terminated by ','
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, channel_type, content_num, influencer_image, influencer_image_link, influencer_name, influencer_type,
+                influencer_type_detail, fan_count, sns_follower_type_count, influencer_info1_title, influencer_info2_title,
+                influencer_info3_title, influencer_info1_desc, influencer_info2_desc, influencer_info3_desc, content_title,
+                content_desc, content_link, content_post_date)
+    </insert>
+
+    <insert id="insertInfluencerContentImage">
+        load data infile #{filePath}
+            into table influencer_content_image
+            character set utf8mb4
+            fields
+                terminated by ','
+                OPTIONALLY ENCLOSED BY '"' ESCAPED BY '"'
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, content_num, content_image_url)
+    </insert>
+
+    <insert id="insertRelatedContent">
+        load data infile #{filePath}
+            into table related_content
+            character set utf8mb4
+            fields
+                terminated by ','
+                OPTIONALLY ENCLOSED BY '"' ESCAPED BY '"'
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, content_num, content_title, content_url)
+    </insert>
+
+    <insert id="insertPopularKeyword">
+        load data infile #{filePath}
+            into table popular_keyword
+            character set utf8mb4
+            fields
+                terminated by ','
+                OPTIONALLY ENCLOSED BY '"' ESCAPED BY '"'
+            lines
+                terminated by '\n'
+            ignore 2 lines (keyword_seq, image, keyword, count)
+    </insert>
+
+
+    <insert id="insertLog" useGeneratedKeys="true" keyProperty="seq">
+        insert into process_step_log(keyword_seq, channel_type, task_type, task_step, task_name, task_startdate)
+            values(#{keywordSeq}, #{channelType}, #{taskType}, #{taskStep}, #{taskName}, now())
+    </insert>
+
+    <update id="updateLog">
+        update process_step_log
+        set task_status = #{taskStatus}, task_message = #{taskMessage}, task_enddate = now(), task_file_name = #{taskFileName},
+            status = #{status}, retry_count = #{retryCount}, mail_count = #{mailCount}
+        where seq = #{seq}
+    </update>
+
+<!--    <select id="getLog" resultType="com.influencer.vo.LogVO">-->
+<!--        select seq, date, hh, task_status taskStatus, task_message taskMessage, task_file_name taskFileName,-->
+<!--            status, retry_count retryCount, mail_count mailCount-->
+<!--        from process_step_log-->
+<!--        where keyword_seq = #{keywordSeq} and channel_type = #{channelType} and task_type = #{taskType} and task_step = #{taskStep}-->
+<!--            and date = #{date} and hh = #{hh}-->
+<!--        order by regdate desc limit 1-->
+<!--    </select>-->
+    <select id="getLog" resultType="com.influencer.vo.LogVO">
+        select seq, date, hh, task_status taskStatus, task_message taskMessage, task_file_name taskFileName,
+            status, retry_count retryCount, mail_count mailCount
+        from process_step_log
+        where keyword_seq = #{keywordSeq} and channel_type = #{channelType} and task_type = #{taskType} and task_step = #{taskStep}
+            and date <![CDATA[>=]]> #{date} and hh <![CDATA[>=]]> #{hh}
+        order by seq desc limit 1
+    </select>
+
+    <select id="confirmFirst" resultType="int">
+        select count(*)
+        from process_step_log
+        where task_type <![CDATA[<]]> 4 and date = #{date} and hh = #{hh}
+    </select>
+
+    <!-- task_type이 4보다 작고 시간이 3의 배수인 log들 중 가장 최근의 것
+        (3시간에 한 번씩 정수집이 돌아가니까 재수집때에도 정수집 기준으로 프로세스가 진행되어야 함) -->
+    <select id="getTime" resultType="com.influencer.vo.timeVO">
+        select date, hh
+        from process_step_log
+        where task_type <![CDATA[<]]> 4 and hh % 3 = 0
+        order by seq desc limit 1
+    </select>
+
+    <select id="getMailLog" resultType="com.influencer.vo.MailLogVO">
+        select k.keyword keyword, l.channel_type channelType, l.task_type taskType,
+            l.task_step taskStep, l.retry_count retryCount
+        from process_step_log l
+        join keyword_info k
+        on k.seq = l.keyword_seq
+        where l.seq = #{seq}
+    </select>
+
+    <select id="getSeq" resultType="int">
+        select max(seq)
+        from ${tableName}
+    </select>
+
+    <update id="updateLogSeq">
+        update ${tableName}
+        set log_seq = #{logSeq}
+        where seq between #{minSeq} and #{maxSeq}
+    </update>
+
+    <update id="todayTarget0">
+        update process_step_log
+        set summary_flag = '0'
+        where date = #{date} and task_type <![CDATA[<]]> 4
+    </update>
+
+    <update id="todayTarget1">
+        update process_step_log l1
+        join (
+            select date, max(hh) hh, task_name, keyword_seq, max(regdate) regdate
+            from process_step_log
+            where task_type = 3 and status = 1 and date = #{date}
+            group by task_name, keyword_seq
+        ) l2
+        set l1.summary_flag = '1'
+        where l1.date = l2.date and l1.hh = l2.hh and l1.task_name = l2.task_name and l1.keyword_seq and l2.keyword_seq
+            and l1.regdate = l2.regdate
+
+
+
+    </update>
+
+    <select id="failKeyword" resultType="int">
+        select keyword_seq
+        from process_step_log
+        where date = #{date} and hh >= #{hh} and
+            task_name = 'INSERT_TO_MYSQL_CHANNEL_YOUTUBE_STEP8' and status = 1
+    </select>
+</mapper>
