@@ -52,15 +52,7 @@ public class InfluencerServiceImpl implements InfluencerService {
 
     //오류 메일 보내는 function
     private void sendMail(MailLogVO mailLog) throws Exception {
-        String FROM = "domain@artistchai.co.kr";
-        String FROMNAME = "";
-        String TO = "cogus1103@artistchai.co.kr";
-//        String TO = "solution@artistchai.co.kr";
-        String SMTP_USERNAME = "domain@artistchai.co.kr";
-        String SMTP_PASSWORD = "abcd123456";
 
-        String HOST = "smtp.mailplug.co.kr";
-        int PORT = 465;
 
         String SUBJECT = "[CURADAR] 네이버 인플루언서 수집 오류";
 
@@ -147,10 +139,7 @@ public class InfluencerServiceImpl implements InfluencerService {
                     "자세한 내용은 메일을 확인해주세요.";
 
             //string data 객체 저장
-            multipart.addFormField("type", "influencer");
-            multipart.addFormField("templateCode", "chai15");
-            multipart.addFormField("toMiCode", "202203-016");
-            multipart.addFormField("content", content);
+
 
             //send post
             multipart.finish();
